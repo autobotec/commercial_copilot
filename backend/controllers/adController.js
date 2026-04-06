@@ -24,7 +24,7 @@ exports.heartbeat = async (req, res) => {
     try {
         const { lat, lng } = req.body;
 
-        if (!lat || !lng) {
+        if (lat === undefined || lng === undefined) {
             console.warn('>>> [HEARTBEAT] Missing coordinates in request body');
             return res.status(400).json({ error: 'Location required' });
         }
@@ -66,6 +66,15 @@ exports.heartbeat = async (req, res) => {
             if (campaign && !isWithinSchedule(campaign.scheduleStart, campaign.scheduleEnd)) {
                 console.log(`>>> [SCHEDULE] Ad "${campaign.name}" is outside its active hours (${campaign.scheduleStart}-${campaign.scheduleEnd}). Falling to loop.`);
                 matchedAd = null;
+            }
+        } else if (zones.length > 0) {
+            // Fallback: Always play the first active ad as default if no geo match
+            // Specifically to ensure "gestion de negocios" (or fallback) always plays before the loop
+            const fallbackZone = zones.find(z => z.Ad && z.Ad.Campaign && 
+                 isWithinSchedule(z.Ad.Campaign.scheduleStart, z.Ad.Campaign.scheduleEnd));
+            if (fallbackZone) {
+                matchedAd = fallbackZone.Ad;
+                console.log(`>>> [AD FALLBACK] Using default ad "${matchedAd.Campaign?.name}" since no GeoZone matched.`);
             }
         }
 
